@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-
 /* Mario physics reference: http://s276.photobucket.com/user/jdaster64/media/smb_playerphysics.png.html */
 
 
@@ -61,7 +60,6 @@ public class Mario : MonoBehaviour {
 	private bool jumpButtonReleased;
 
 	public bool inputFreezed;
-
 
 	// Use this for initialization
 	void Start () {
