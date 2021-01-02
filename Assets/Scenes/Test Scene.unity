@@ -188,6 +188,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Brown Brick Block- Regular
       objectReference: {fileID: 0}
+    - target: {fileID: 1539517773479806, guid: 884934ea3b1604605a91783a55f1e9e1, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4009762411543624, guid: 884934ea3b1604605a91783a55f1e9e1, type: 3}
       propertyPath: m_RootOrder
       value: 1
@@ -198,7 +202,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4009762411543624, guid: 884934ea3b1604605a91783a55f1e9e1, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 2.873436
+      value: 1.9
       objectReference: {fileID: 0}
     - target: {fileID: 4009762411543624, guid: 884934ea3b1604605a91783a55f1e9e1, type: 3}
       propertyPath: m_LocalPosition.z
@@ -405,6 +409,12 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 15
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &404843589 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1116515221023456, guid: 2edb2b8e476654f0ea2807c7a8261a76,
+    type: 3}
+  m_PrefabInstance: {fileID: 2136102204}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &466872572
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1293,6 +1303,50 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b96c82cf6024348128259a1909ed9b48, type: 3}
+--- !u!1 &1913774471
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1913774473}
+  - component: {fileID: 1913774472}
+  m_Layer: 0
+  m_Name: Timeline
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1913774472
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1913774471}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c69c94a8848f2cf4ca6774c6804422b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mario: {fileID: 404843589}
+--- !u!4 &1913774473
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1913774471}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 14.405798, y: 4.6003866, z: -8.6796875}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 17
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2013946554
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1392,5 +1446,10 @@ PrefabInstance:
       propertyPath: m_LocalPosition.x
       value: 12.92
       objectReference: {fileID: 0}
+    - target: {fileID: 114750208195470174, guid: 2edb2b8e476654f0ea2807c7a8261a76,
+        type: 3}
+      propertyPath: timeline
+      value: 
+      objectReference: {fileID: 1913774472}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2edb2b8e476654f0ea2807c7a8261a76, type: 3}

@@ -9,6 +9,8 @@ using System.Text.RegularExpressions;
 public class LevelManager : MonoBehaviour {
 	private const float loadSceneDelay = 1f;
 
+	public Timeline timeline;
+
 	public bool hurryUp; // within last 100 secs?
 	public int marioSize; // 0..2
 	public int lives;
@@ -455,7 +457,7 @@ public class LevelManager : MonoBehaviour {
 
 	public void SetHudTime() {
 		timeLeftInt = Mathf.RoundToInt (timeLeft);
-		timeText.text = timeLeftInt.ToString ("D3");
+		timeText.text = timeline.Size.ToString();// timeLeftInt.ToString ("D3");
 	}
 
 	public void CreateFloatingText(string text, Vector3 spawnPos) {
