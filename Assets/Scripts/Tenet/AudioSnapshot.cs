@@ -1,12 +1,10 @@
-﻿public sealed class AudioSnapshot : ISnapshot
+﻿public sealed class AudioSnapshot : BaseSnapshot
 {
-    public ITimelined Owner { get; }
     public bool Started { get; }
     public float Time { get; }
 
-    public AudioSnapshot(ITimelined owner, bool started, float time)
+    public AudioSnapshot(ITimelined owner, bool started, float time) : base(owner)
     {
-        Owner = owner;
         Started = started;
         Time = time;
     }

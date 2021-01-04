@@ -1637,5 +1637,10 @@ PrefabInstance:
       propertyPath: DebugText
       value: 
       objectReference: {fileID: 1143550939}
+    - target: {fileID: 114750208195470174, guid: 2edb2b8e476654f0ea2807c7a8261a76,
+        type: 3}
+      propertyPath: debugText
+      value: 
+      objectReference: {fileID: 1143550939}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2edb2b8e476654f0ea2807c7a8261a76, type: 3}

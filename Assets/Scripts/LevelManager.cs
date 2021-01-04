@@ -4,12 +4,11 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using System.Text.RegularExpressions;
-using System;
 
 public class LevelManager : MonoBehaviour, ITimelined {
 	private const float loadSceneDelay = 1f;
 
-	public Text DebugText;
+	public Text debugText;
 	public Timeline timeline;
 
 	public bool hurryUp; // within last 100 secs?
@@ -125,12 +124,11 @@ public class LevelManager : MonoBehaviour, ITimelined {
 
 	public void Play(ISnapshot snapshot)
 	{
-		var converted = snapshot as AudioSnapshot;
-		if (converted == null) return; //TODO
+		var audio = snapshot.As<AudioSnapshot>();
 
-		if ((converted.Started ? 1 : -1) == timeline.Direction)
+		if ((audio.Started ? 1 : -1) == timeline.Direction)
         {
-			musicSource.time = converted.Time;
+			musicSource.time = audio.Time;
 			musicSource.Play();
         }
 		else
@@ -178,17 +176,19 @@ public class LevelManager : MonoBehaviour, ITimelined {
 			}
 		}
 
-		DebugText.text = timeline.ToString();
+		debugText.text = timeline.ToString();
 
-		if (Input.GetKeyDown(KeyCode.Space)) //TODO : magic keycode
+		//TODO : debug
+		if (Input.GetKeyDown(KeyCode.Space))
         {
 			timeline.Record(new AudioSnapshot(this, false, musicSource.time));
 			musicSource.Stop();
-			timeline.Invert(false);
+
+			timeline.Invert(recording: false);
         }
 
 		if (Input.GetKeyDown(KeyCode.R))
-			SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+			SceneManager.LoadScene(SceneManager.GetActiveScene().name); //Restart
 	}
 
 
@@ -196,8 +196,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
 	List<Animator> unscaledAnimators = new List<Animator> ();
 	float pauseGamePrevTimeScale;
 	bool pausePrevMusicPaused;
-
-	
 
 	IEnumerator PauseGameCo() {
 		gamePaused = true;
