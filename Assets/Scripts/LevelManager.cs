@@ -4,11 +4,12 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using System.Text.RegularExpressions;
+using System;
 
-
-public class LevelManager : MonoBehaviour {
+public class LevelManager : MonoBehaviour, ITimelined {
 	private const float loadSceneDelay = 1f;
 
+	public Text DebugText;
 	public Timeline timeline;
 
 	public bool hurryUp; // within last 100 secs?
@@ -110,7 +111,32 @@ public class LevelManager : MonoBehaviour {
 			ChangeMusic (levelMusic);
 		}
 
+		timeline.Record(new AudioSnapshot(this, true, 0));
+
 		Debug.Log (this.name + " Start: current scene is " + SceneManager.GetActiveScene ().name);
+
+		timeline.OnInverted += OnTimelineInverted;
+	}
+
+    private void OnTimelineInverted(int direction)
+    {
+		musicSource.pitch = direction;
+	}
+
+	public void Play(ISnapshot snapshot)
+	{
+		var converted = snapshot as AudioSnapshot;
+		if (converted == null) return; //TODO
+
+		if ((converted.Started ? 1 : -1) == timeline.Direction)
+        {
+			musicSource.time = converted.Time;
+			musicSource.Play();
+        }
+		else
+        {
+			musicSource.Stop();
+        }
 	}
 
 	void RetrieveGameState() {
@@ -152,6 +178,17 @@ public class LevelManager : MonoBehaviour {
 			}
 		}
 
+		DebugText.text = timeline.ToString();
+
+		if (Input.GetKeyDown(KeyCode.Space)) //TODO : magic keycode
+        {
+			timeline.Record(new AudioSnapshot(this, false, musicSource.time));
+			musicSource.Stop();
+			timeline.Invert(false);
+        }
+
+		if (Input.GetKeyDown(KeyCode.R))
+			SceneManager.LoadScene(SceneManager.GetActiveScene().name);
 	}
 
 
@@ -159,6 +196,8 @@ public class LevelManager : MonoBehaviour {
 	List<Animator> unscaledAnimators = new List<Animator> ();
 	float pauseGamePrevTimeScale;
 	bool pausePrevMusicPaused;
+
+	
 
 	IEnumerator PauseGameCo() {
 		gamePaused = true;
@@ -457,7 +496,7 @@ public class LevelManager : MonoBehaviour {
 
 	public void SetHudTime() {
 		timeLeftInt = Mathf.RoundToInt (timeLeft);
-		timeText.text = timeline.Size.ToString();// timeLeftInt.ToString ("D3");
+		timeText.text = timeLeftInt.ToString ("D3");
 	}
 
 	public void CreateFloatingText(string text, Vector3 spawnPos) {
@@ -474,10 +513,10 @@ public class LevelManager : MonoBehaviour {
 		Debug.Log (this.name + " ChangeMusicCo: starts changing music to " + clip.name);
 		musicSource.clip = clip;
 		yield return new WaitWhile (() => gamePaused);
-		yield return new WaitForSecondsRealtime (delay);
+		//yield return new WaitForSecondsRealtime (delay);
 		yield return new WaitWhile (() => gamePaused || musicPaused);
 		if (!isRespawning) {
-			musicSource.Play ();
+			musicSource.Play();
 		}
 		Debug.Log (this.name + " ChangeMusicCo: done changing music to " + clip.name);
 	}

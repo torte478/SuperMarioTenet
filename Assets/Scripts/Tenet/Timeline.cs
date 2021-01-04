@@ -2,67 +2,92 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Timeline : MonoBehaviour
+public sealed class Timeline : MonoBehaviour
 {
-    private readonly List<(long, Vector3)> positions = new List<(long, Vector3)>();
+    public int DurationSec;
+    public int FrameRate;
 
-    private long start;
+    private readonly LinkedList<ISnapshot> cache = new LinkedList<ISnapshot>();
+    private readonly List<LinkedList<ISnapshot>> timeline = new List<LinkedList<ISnapshot>>();
 
-    private int index = 1;
-    public bool inverted = false;
+    private int totalSnapshotCount;
+    private TimeSpan delay;
+    private DateTime last;
+    private int index;
+    private bool needInvert;
+    private bool recordAfterInvert;
 
-    public GameObject mario;
+    public bool Recording { get; private set; }
+    public bool Playing { get; private set; }
+    public int Direction { get; private set; }
 
-    public int Size => inverted ? index : positions.Count;
+    public Action<int> OnInverted;
 
     void Start()
     {
-        start = DateTime.Now.Ticks;
-    }
-
-    void Update()
-    {
-        if (Input.GetButtonDown("Cancel"))
-            Invert();
+        totalSnapshotCount = DurationSec * FrameRate;
+        last = DateTime.Now;
+        delay = TimeSpan.FromMilliseconds(1000f / FrameRate);
+        index = 0;
+        timeline.Capacity = totalSnapshotCount;
+        Recording = true;
+        Playing = false;
+        Direction = 1;
     }
 
     void FixedUpdate()
     {
-        if (!inverted)
+        if (index < 0 || index >= totalSnapshotCount) return;
+
+        var now = DateTime.Now;
+        if (now.Subtract(last) < delay) return;
+
+        if (Recording)
         {
-            positions.Add((DateTime.Now.Ticks - start, mario.transform.localPosition));
+            var current = new LinkedList<ISnapshot>();
+            foreach (var snapshot in cache)
+                current.AddLast(snapshot);
+
+            timeline.Add(current);
+            cache.Clear();
+        }
+
+        if (Playing)
+        {
+            foreach (var snapshot in timeline[index])
+                snapshot.Owner.Play(snapshot);
+        }
+
+        if (needInvert)
+        {
+            needInvert = false;
+            Direction *= -1;
+            Recording = recordAfterInvert;
+            Playing = true;
+            OnInverted?.Invoke(Direction);
         }
         else
         {
-            if (index >= 0)
-            {
-                mario.transform.localPosition = positions[index].Item2;
-                --index;
-            }
-            else
-            {
-                Invert();
-            }
+            index += Direction;
         }
-        
+        last = now;
     }
 
-    private void Invert()
+    public override string ToString()
     {
-        if (inverted)
-        {
-            inverted = false;
-            mario.GetComponent<Rigidbody2D>().isKinematic = false;
-            mario.GetComponent<Mario>().inputFreezed = false;
-            index = 1;
-            positions.Clear();
-        }
-        else
-        {
-            inverted = true;
-            mario.GetComponent<Rigidbody2D>().isKinematic = true;
-            mario.GetComponent<Mario>().inputFreezed = true;
-            index = positions.Count - 1;
-        }
+        return $"{index}/{totalSnapshotCount}";
+    }
+
+    public void Record(ISnapshot snapshot)
+    {
+        if (!Recording) return;
+
+        cache.AddLast(snapshot);
+    }
+
+    public void Invert(bool recording)
+    {
+        needInvert = true;
+        recordAfterInvert = recording;
     }
 }
