@@ -104,6 +104,11 @@ public class Mario : MonoBehaviour, ITimelined {
 
         transform.position = current.Position;
         transform.localScale = new Vector2(current.Direction, transform.localScale.y);
+        m_Animator.SetFloat("absSpeed", current.Animator.AbsSpeed);
+        m_Animator.SetBool("isJumping", current.Animator.IsJumping);
+        m_Animator.SetBool("isCrouching", current.Animator.IsCrouching);
+        m_Animator.SetBool("isFallingNotFromJump", current.Animator.IsFallingNotFromJump);
+        m_Animator.SetBool("isSkidding", current.Animator.IsSkidding);
     }
 
     /****************** Movement control */
@@ -140,11 +145,23 @@ public class Mario : MonoBehaviour, ITimelined {
 
     void FixedUpdate ()
     {
-        if (!playedByTimeline)
-        {
-            CalcPhysics();
-            timeline.Record(new Snapshot(this, transform.position, Math.Sign(transform.localScale.x)));
-        }
+        if (playedByTimeline) return;
+
+        CalcPhysics();
+
+        new Snapshot(
+            owner: this,
+            position: transform.position,
+            direction: Math.Sign(transform.localScale.x),
+            animator: new AnimatorState
+            {
+                AbsSpeed = m_Animator.GetFloat("absSpeed"),
+                IsJumping = m_Animator.GetBool("isJumping"),
+                IsCrouching = m_Animator.GetBool("isCrouching"),
+                IsFallingNotFromJump = m_Animator.GetBool("isFallingNotFromJump"),
+                IsSkidding = m_Animator.GetBool("isSkidding"),
+            })
+        ._(timeline.Record);
     }
 
     private void CalcPhysics()
@@ -511,11 +528,22 @@ public class Mario : MonoBehaviour, ITimelined {
     {
         public Vector2 Position { get; }
         public int Direction { get; }
+        public AnimatorState Animator { get; }
 
-        public Snapshot(ITimelined owner, Vector2 position, int direction) : base(owner)
+        public Snapshot(ITimelined owner, Vector2 position, int direction, AnimatorState animator) : base(owner)
         {
             Position = position;
             Direction = direction;
+            Animator = animator;
         }
+    }
+
+    private struct AnimatorState
+    {
+        public bool IsSkidding { get; set; }
+        public bool IsJumping { get; set; }
+        public bool IsCrouching { get; set; }
+        public bool IsFallingNotFromJump { get; set; }
+        public float AbsSpeed { get; set; }
     }
 }
