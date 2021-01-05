@@ -110,7 +110,7 @@ public class LevelManager : MonoBehaviour, ITimelined {
             ChangeMusic (levelMusic);
         }
 
-        timeline.Record(new AudioSnapshot(this, true, 0));
+        timeline.Record(new Snapshot(this, true, 0));
 
         Debug.Log (this.name + " Start: current scene is " + SceneManager.GetActiveScene ().name);
 
@@ -124,7 +124,7 @@ public class LevelManager : MonoBehaviour, ITimelined {
 
     public void Play(ISnapshot snapshot)
     {
-        var audio = snapshot.As<AudioSnapshot>();
+        var audio = snapshot.As<Snapshot>();
 
         if ((audio.Started ? 1 : -1) == timeline.Direction)
         {
@@ -181,7 +181,7 @@ public class LevelManager : MonoBehaviour, ITimelined {
         //TODO : debug
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            timeline.Record(new AudioSnapshot(this, false, musicSource.time));
+            timeline.Record(new Snapshot(this, false, musicSource.time));
             musicSource.Stop();
 
             timeline.Invert(recording: false);
@@ -637,5 +637,17 @@ public class LevelManager : MonoBehaviour, ITimelined {
         timerPaused = true;
         PauseMusicPlaySound (flagpoleSound, false);
         mario.ClimbFlagPole ();
+    }
+
+    private sealed class Snapshot : BaseSnapshot
+    {
+        public bool Started { get; }
+        public float Time { get; }
+
+        public Snapshot(ITimelined owner, bool started, float time) : base(owner)
+        {
+            Started = started;
+            Time = time;
+        }
     }
 }

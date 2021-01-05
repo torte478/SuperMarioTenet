@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public sealed class Timeline : MonoBehaviour
@@ -81,6 +82,10 @@ public sealed class Timeline : MonoBehaviour
     public void Record(ISnapshot snapshot)
     {
         if (!Recording) return;
+
+        var existing = cache.FirstOrDefault(_ => _.Owner == snapshot.Owner);
+        if (existing != null)
+            cache.Remove(existing);
 
         cache.AddLast(snapshot);
     }

@@ -1,11 +1,15 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 /* Mario physics reference: http://s276.photobucket.com/user/jdaster64/media/smb_playerphysics.png.html */
 
 
-public class Mario : MonoBehaviour {
+public class Mario : MonoBehaviour, ITimelined {
+
+	public Timeline timeline;
+
 	private LevelManager t_LevelManager;
 	private Transform m_GroundCheck1, m_GroundCheck2;
 	private GameObject m_StompBox;
@@ -59,6 +63,8 @@ public class Mario : MonoBehaviour {
 	private bool jumpButtonHeld;
 	private bool jumpButtonReleased;
 
+	private bool playedByTimeline;
+
 	public bool inputFreezed;
 
 	// Use this for initialization
@@ -81,11 +87,20 @@ public class Mario : MonoBehaviour {
 		jumpButtonReleased = true;
 		fireTime1 = 0;
 		fireTime2 = 0;
+
+		timeline.OnInverted += OnTimelineInverted;
 	}
 
+    private void OnTimelineInverted(int direction)
+    {
+		inputFreezed = true;
+		m_Rigidbody2D.isKinematic = true;
+		playedByTimeline = true;
+    }
 
-	/****************** Movement control */
-	void SetJumpParams() {
+
+    /****************** Movement control */
+    void SetJumpParams() {
 		if (currentSpeedX < 3.75f) {
 			jumpSpeedY = 15f;
 			jumpUpGravity = .47f;
@@ -116,156 +131,212 @@ public class Mario : MonoBehaviour {
 	}
 
 
-	void FixedUpdate () {
-		/******** Horizontal movement on ground */
-		if (isGrounded) {
-			// If holding directional button, accelerate until reach max walk speed
-			// If holding Dash, accelerate until reach max run speed
-			if (faceDirectionX != 0) {
-				if (currentSpeedX == 0) {
-					currentSpeedX = minWalkSpeedX;
-				} else if (currentSpeedX < maxWalkSpeedX) {
-					currentSpeedX = IncreaseWithinBound (currentSpeedX, walkAccelerationX, maxWalkSpeedX);
-				} else if (isDashing && currentSpeedX < maxRunSpeedX) {
-					currentSpeedX = IncreaseWithinBound (currentSpeedX, runAccelerationX, maxRunSpeedX);
-				}
-			} 
-
-			// Decelerate upon release of directional button
-			else if (currentSpeedX > 0) {
-				currentSpeedX = DecreaseWithinBound (currentSpeedX, releaseDecelerationX, 0);
-			}
-
-			// If change direction, skid until lose all momentum then turn around
-			if (isChangingDirection) {
-				if (currentSpeedX > skidTurnaroundSpeedX) {
-					moveDirectionX = -faceDirectionX;
-					m_Animator.SetBool ("isSkidding", true);
-					currentSpeedX = DecreaseWithinBound (currentSpeedX, skidDecelerationX, 0);
-				} else {
-					moveDirectionX = faceDirectionX;
-					m_Animator.SetBool ("isSkidding", false);
-				}
-			} else {
-				m_Animator.SetBool ("isSkidding", false);
-			}
-
-			// Freeze horizontal movement while crouching
-			if (isCrouching) {
-				currentSpeedX = 0;
-			}
-
-
-		/******** Horizontal movement on air */
-		} else {
-			SetMidairParams ();
-
-			// Holding Dash while in midair has no effect
-			if (faceDirectionX != 0) {
-				if (currentSpeedX == 0) {
-					currentSpeedX = minWalkSpeedX;
-				} else if (currentSpeedX < maxWalkSpeedX) {
-					currentSpeedX = IncreaseWithinBound (currentSpeedX, midairAccelerationX, maxWalkSpeedX);
-				} else if (wasDashingBeforeJump && currentSpeedX < maxRunSpeedX) {
-					currentSpeedX = IncreaseWithinBound (currentSpeedX, midairAccelerationX, maxRunSpeedX);
-				}
-			} else if (currentSpeedX > 0) {
-				currentSpeedX = DecreaseWithinBound (currentSpeedX, releaseDecelerationX, 0);
-			}
-
-			// If change direction, decelerate but keep facing move direction
-			if (isChangingDirection) {
-				faceDirectionX = moveDirectionX;
-				currentSpeedX = DecreaseWithinBound (currentSpeedX, midairDecelerationX, 0);
-			}
+	void FixedUpdate ()
+    {
+		if (!playedByTimeline)
+        {
+			CalcPhysics();
+			timeline.Record(new Snapshot(this, transform.position));
 		}
-
-
-		/******** Vertical movement */
-		if (isGrounded) {
-			isJumping = false;
-			m_Rigidbody2D.gravityScale = normalGravity;
-		}
-
-		if (!isJumping) {
-			if (isGrounded && jumpButtonHeld && jumpButtonReleased) {
-				SetJumpParams ();
-				m_Rigidbody2D.velocity = new Vector2 (m_Rigidbody2D.velocity.x, jumpSpeedY);
-				isJumping = true;
-				jumpButtonReleased = false;
-				speedXBeforeJump = currentSpeedX;
-				wasDashingBeforeJump = isDashing;
-				if (t_LevelManager.marioSize == 0) {
-					t_LevelManager.soundSource.PlayOneShot (t_LevelManager.jumpSmallSound);
-				} else {
-					t_LevelManager.soundSource.PlayOneShot (t_LevelManager.jumpSuperSound);
-				}
-			}
-		} else {  // lower gravity if Jump button held; increased gravity if released
-			if (m_Rigidbody2D.velocity.y > 0 && jumpButtonHeld) {
-				m_Rigidbody2D.gravityScale = normalGravity * jumpUpGravity;
-			} else {
-				m_Rigidbody2D.gravityScale = normalGravity * jumpDownGravity;
-			}
-		}
-
-
-		// Disable Stomp Box if not falling down
-		// Disable Circle Collider if falling down (to prevent multi collisions registered)
-		if (!isFalling) {
-			m_StompBox.SetActive (false);
-			m_CircleCollider2D.enabled = true;
-		} else {
-			m_StompBox.SetActive (true);
-			m_CircleCollider2D.enabled = false;
-		}
-
-
-
-		/******** Horizontal orientation */
-		if (faceDirectionX > 0) {
-			transform.localScale = new Vector2 (1, 1); // facing right
-		} else if (faceDirectionX < 0) {
-			transform.localScale = new Vector2 (-1, 1);
-		}
-
-
-		/******** Reset params for automatic movement */
-		if (inputFreezed) {
-			currentSpeedX = automaticWalkSpeedX;
-			m_Rigidbody2D.gravityScale = automaticGravity;
-		}
-
-		/******** Shooting */
-		if (isShooting && t_LevelManager.marioSize == 2) {
-			fireTime2 = Time.time;
-
-			if (fireTime2 - fireTime1 >= waitBetweenFire) {
-				m_Animator.SetTrigger ("isFiring");
-				GameObject fireball = Instantiate (Fireball, FirePos.position, Quaternion.identity);
-				fireball.GetComponent<MarioFireball> ().directionX = transform.localScale.x;
-				t_LevelManager.soundSource.PlayOneShot (t_LevelManager.fireballSound);
-				fireTime1 = Time.time;
-			}
-		}
-
-		/******** Set params */
-		m_Rigidbody2D.velocity = new Vector2 (moveDirectionX*currentSpeedX, m_Rigidbody2D.velocity.y);
-
-		m_Animator.SetBool ("isJumping", isJumping);
-		m_Animator.SetBool ("isFallingNotFromJump", isFalling && !isJumping);
-		m_Animator.SetBool ("isCrouching", isCrouching);
-		m_Animator.SetFloat ("absSpeed", Mathf.Abs (currentSpeedX));
-
-		if (faceDirectionX != 0 && !isChangingDirection) {
-			moveDirectionX = faceDirectionX;
-		}
-			
 	}
 
+    private void CalcPhysics()
+    {
+        /******** Horizontal movement on ground */
+        if (isGrounded)
+        {
+            // If holding directional button, accelerate until reach max walk speed
+            // If holding Dash, accelerate until reach max run speed
+            if (faceDirectionX != 0)
+            {
+                if (currentSpeedX == 0)
+                {
+                    currentSpeedX = minWalkSpeedX;
+                }
+                else if (currentSpeedX < maxWalkSpeedX)
+                {
+                    currentSpeedX = IncreaseWithinBound(currentSpeedX, walkAccelerationX, maxWalkSpeedX);
+                }
+                else if (isDashing && currentSpeedX < maxRunSpeedX)
+                {
+                    currentSpeedX = IncreaseWithinBound(currentSpeedX, runAccelerationX, maxRunSpeedX);
+                }
+            }
 
-	/****************** Automatic movement sequences */
-	void Update() {
+            // Decelerate upon release of directional button
+            else if (currentSpeedX > 0)
+            {
+                currentSpeedX = DecreaseWithinBound(currentSpeedX, releaseDecelerationX, 0);
+            }
+
+            // If change direction, skid until lose all momentum then turn around
+            if (isChangingDirection)
+            {
+                if (currentSpeedX > skidTurnaroundSpeedX)
+                {
+                    moveDirectionX = -faceDirectionX;
+                    m_Animator.SetBool("isSkidding", true);
+                    currentSpeedX = DecreaseWithinBound(currentSpeedX, skidDecelerationX, 0);
+                }
+                else
+                {
+                    moveDirectionX = faceDirectionX;
+                    m_Animator.SetBool("isSkidding", false);
+                }
+            }
+            else
+            {
+                m_Animator.SetBool("isSkidding", false);
+            }
+
+            // Freeze horizontal movement while crouching
+            if (isCrouching)
+            {
+                currentSpeedX = 0;
+            }
+
+
+            /******** Horizontal movement on air */
+        }
+        else
+        {
+            SetMidairParams();
+
+            // Holding Dash while in midair has no effect
+            if (faceDirectionX != 0)
+            {
+                if (currentSpeedX == 0)
+                {
+                    currentSpeedX = minWalkSpeedX;
+                }
+                else if (currentSpeedX < maxWalkSpeedX)
+                {
+                    currentSpeedX = IncreaseWithinBound(currentSpeedX, midairAccelerationX, maxWalkSpeedX);
+                }
+                else if (wasDashingBeforeJump && currentSpeedX < maxRunSpeedX)
+                {
+                    currentSpeedX = IncreaseWithinBound(currentSpeedX, midairAccelerationX, maxRunSpeedX);
+                }
+            }
+            else if (currentSpeedX > 0)
+            {
+                currentSpeedX = DecreaseWithinBound(currentSpeedX, releaseDecelerationX, 0);
+            }
+
+            // If change direction, decelerate but keep facing move direction
+            if (isChangingDirection)
+            {
+                faceDirectionX = moveDirectionX;
+                currentSpeedX = DecreaseWithinBound(currentSpeedX, midairDecelerationX, 0);
+            }
+        }
+
+
+        /******** Vertical movement */
+        if (isGrounded)
+        {
+            isJumping = false;
+            m_Rigidbody2D.gravityScale = normalGravity;
+        }
+
+        if (!isJumping)
+        {
+            if (isGrounded && jumpButtonHeld && jumpButtonReleased)
+            {
+                SetJumpParams();
+                m_Rigidbody2D.velocity = new Vector2(m_Rigidbody2D.velocity.x, jumpSpeedY);
+                isJumping = true;
+                jumpButtonReleased = false;
+                speedXBeforeJump = currentSpeedX;
+                wasDashingBeforeJump = isDashing;
+                if (t_LevelManager.marioSize == 0)
+                {
+                    t_LevelManager.soundSource.PlayOneShot(t_LevelManager.jumpSmallSound);
+                }
+                else
+                {
+                    t_LevelManager.soundSource.PlayOneShot(t_LevelManager.jumpSuperSound);
+                }
+            }
+        }
+        else
+        {  // lower gravity if Jump button held; increased gravity if released
+            if (m_Rigidbody2D.velocity.y > 0 && jumpButtonHeld)
+            {
+                m_Rigidbody2D.gravityScale = normalGravity * jumpUpGravity;
+            }
+            else
+            {
+                m_Rigidbody2D.gravityScale = normalGravity * jumpDownGravity;
+            }
+        }
+
+
+        // Disable Stomp Box if not falling down
+        // Disable Circle Collider if falling down (to prevent multi collisions registered)
+        if (!isFalling)
+        {
+            m_StompBox.SetActive(false);
+            m_CircleCollider2D.enabled = true;
+        }
+        else
+        {
+            m_StompBox.SetActive(true);
+            m_CircleCollider2D.enabled = false;
+        }
+
+
+
+        /******** Horizontal orientation */
+        if (faceDirectionX > 0)
+        {
+            transform.localScale = new Vector2(1, 1); // facing right
+        }
+        else if (faceDirectionX < 0)
+        {
+            transform.localScale = new Vector2(-1, 1);
+        }
+
+
+        /******** Reset params for automatic movement */
+        if (inputFreezed)
+        {
+            currentSpeedX = automaticWalkSpeedX;
+            m_Rigidbody2D.gravityScale = automaticGravity;
+        }
+
+        /******** Shooting */
+        if (isShooting && t_LevelManager.marioSize == 2)
+        {
+            fireTime2 = Time.time;
+
+            if (fireTime2 - fireTime1 >= waitBetweenFire)
+            {
+                m_Animator.SetTrigger("isFiring");
+                GameObject fireball = Instantiate(Fireball, FirePos.position, Quaternion.identity);
+                fireball.GetComponent<MarioFireball>().directionX = transform.localScale.x;
+                t_LevelManager.soundSource.PlayOneShot(t_LevelManager.fireballSound);
+                fireTime1 = Time.time;
+            }
+        }
+
+        /******** Set params */
+        m_Rigidbody2D.velocity = new Vector2(moveDirectionX * currentSpeedX, m_Rigidbody2D.velocity.y);
+
+        m_Animator.SetBool("isJumping", isJumping);
+        m_Animator.SetBool("isFallingNotFromJump", isFalling && !isJumping);
+        m_Animator.SetBool("isCrouching", isCrouching);
+        m_Animator.SetFloat("absSpeed", Mathf.Abs(currentSpeedX));
+
+        if (faceDirectionX != 0 && !isChangingDirection)
+        {
+            moveDirectionX = faceDirectionX;
+        }
+    }
+
+
+    /****************** Automatic movement sequences */
+    void Update() {
 		if (!inputFreezed) {
 			faceDirectionX = Input.GetAxisRaw ("Horizontal"); // > 0 for right, < 0 for left
 			isDashing = Input.GetButton ("Dash");
@@ -429,4 +500,20 @@ public class Mario : MonoBehaviour {
 		}
 	}
 
+    public void Play(ISnapshot snapshot)
+    {
+		var current = snapshot.As<Snapshot>();
+
+		transform.position = current.Position;
+    }
+
+    private sealed class Snapshot : BaseSnapshot
+    {
+		public Vector2 Position { get; }
+
+        public Snapshot(ITimelined owner, Vector2 position) : base(owner)
+        {
+			Position = position;
+        }
+    }
 }
