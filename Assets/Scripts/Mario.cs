@@ -98,6 +98,13 @@ public class Mario : MonoBehaviour, ITimelined {
         playedByTimeline = true;
     }
 
+    public void Play(ISnapshot snapshot)
+    {
+        var current = snapshot.As<Snapshot>();
+
+        transform.position = current.Position;
+        transform.localScale = new Vector2(current.Direction, transform.localScale.y);
+    }
 
     /****************** Movement control */
     void SetJumpParams() {
@@ -136,7 +143,7 @@ public class Mario : MonoBehaviour, ITimelined {
         if (!playedByTimeline)
         {
             CalcPhysics();
-            timeline.Record(new Snapshot(this, transform.position));
+            timeline.Record(new Snapshot(this, transform.position, Math.Sign(transform.localScale.x)));
         }
     }
 
@@ -500,20 +507,15 @@ public class Mario : MonoBehaviour, ITimelined {
         }
     }
 
-    public void Play(ISnapshot snapshot)
-    {
-        var current = snapshot.As<Snapshot>();
-
-        transform.position = current.Position;
-    }
-
     private sealed class Snapshot : BaseSnapshot
     {
         public Vector2 Position { get; }
+        public int Direction { get; }
 
-        public Snapshot(ITimelined owner, Vector2 position) : base(owner)
+        public Snapshot(ITimelined owner, Vector2 position, int direction) : base(owner)
         {
             Position = position;
+            Direction = direction;
         }
     }
 }
