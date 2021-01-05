@@ -1,11 +1,13 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-using System.Text.RegularExpressions;
 
-public class LevelManager : MonoBehaviour, ITimelined {
+public class LevelManager : MonoBehaviour, ITimelined
+{
     private const float loadSceneDelay = 1f;
 
     public Text debugText;
@@ -68,6 +70,10 @@ public class LevelManager : MonoBehaviour, ITimelined {
     public AudioClip stompSound;
     public AudioClip warningSound;
 
+    public AudioClip invertedJumpSmallSound;
+
+    private List<(AudioClip, AudioClip)> audioClips = new List<(AudioClip, AudioClip)>();
+
     public int coinBonus = 200;
     public int powerupBonus = 1000;
     public int starmanBonus = 1000;
@@ -79,7 +85,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
     public bool gamePaused;
     public bool timerPaused;
     public bool musicPaused;
-
 
     void Awake() {
         Time.timeScale = 1;
@@ -110,30 +115,49 @@ public class LevelManager : MonoBehaviour, ITimelined {
             ChangeMusic (levelMusic);
         }
 
-        timeline.Record(new Snapshot(this, true, 0));
-
-        Debug.Log (this.name + " Start: current scene is " + SceneManager.GetActiveScene ().name);
+        audioClips.Add((jumpSmallSound, invertedJumpSmallSound));
 
         timeline.OnInverted += OnTimelineInverted;
+        //TODO : replace where it actualy happened
+        new Snapshot(
+            owner: this,
+            audio: levelMusic,
+            started: true,
+            time: 0,
+            once: false)
+        ._(timeline.Record);
     }
 
     private void OnTimelineInverted(int direction)
     {
         musicSource.pitch = direction;
+        Replaying = true;
     }
 
     public void Play(ISnapshot snapshot)
     {
         var audio = snapshot.As<Snapshot>();
 
-        if ((audio.Started ? 1 : -1) == timeline.Direction)
+        var startPlay = (audio.Started ? 1 : -1) == timeline.Direction;
+
+        if (audio.Once)
         {
-            musicSource.time = audio.Time;
-            musicSource.Play();
+            if (startPlay)
+            {
+                soundSource.PlayOneShot(audio.Audio);
+            }
         }
         else
         {
-            musicSource.Stop();
+            if (startPlay)
+            {
+                musicSource.time = audio.Time;
+                musicSource.Play();
+            }
+            else
+            {
+                musicSource.Stop();
+            }
         }
     }
 
@@ -179,9 +203,16 @@ public class LevelManager : MonoBehaviour, ITimelined {
         debugText.text = timeline.ToString();
 
         //TODO : debug
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.Space) && !Replaying)
         {
-            timeline.Record(new Snapshot(this, false, musicSource.time));
+            new Snapshot(
+                owner: this,
+                audio: levelMusic,
+                started: false,
+                time: musicSource.time,
+                once: false)
+            ._(timeline.Record);
+
             musicSource.Stop();
 
             timeline.Invert(recording: false);
@@ -196,6 +227,8 @@ public class LevelManager : MonoBehaviour, ITimelined {
     List<Animator> unscaledAnimators = new List<Animator> ();
     float pauseGamePrevTimeScale;
     bool pausePrevMusicPaused;
+
+    public bool Replaying { get; private set; }
 
     IEnumerator PauseGameCo() {
         gamePaused = true;
@@ -218,7 +251,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
 
         pauseSoundSource.Play();
         yield return new WaitForSecondsRealtime (pauseSoundSource.clip.length);
-        Debug.Log (this.name + " PauseGameCo stops: records prevTimeScale=" + pauseGamePrevTimeScale.ToString());
     }
 
     IEnumerator UnpauseGameCo() {
@@ -239,7 +271,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
 
         Time.timeScale = pauseGamePrevTimeScale;
         gamePaused = false;
-        Debug.Log (this.name + " UnpauseGameCo stops: resume prevTimeScale=" + pauseGamePrevTimeScale.ToString());
     }
 
 
@@ -315,7 +346,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
 
     public void MarioPowerDown() {
         if (!isPoweringDown) {
-            Debug.Log (this.name + " MarioPowerDown: called and executed");
             isPoweringDown = true;
 
             if (marioSize > 0) {
@@ -324,9 +354,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
             } else {
                 MarioRespawn ();
             }
-            Debug.Log (this.name + " MarioPowerDown: done executing");
-        } else {
-            Debug.Log (this.name + " MarioPowerDown: called but not executed");
         }
     }
 
@@ -363,16 +390,10 @@ public class LevelManager : MonoBehaviour, ITimelined {
             Time.timeScale = 0f;
             mario.FreezeAndDie ();
 
-            if (timeup) {
-                Debug.Log(this.name + " MarioRespawn: called due to timeup");
-            }
-            Debug.Log (this.name + " MarioRespawn: lives left=" + lives.ToString ());
-
             if (lives > 0) {
                 ReloadCurrentLevel (deadSound.length, timeup);
             } else {
                 LoadGameOver (deadSound.length, timeup);
-                Debug.Log(this.name + " MarioRespawn: all dead");
             }
         }
     }
@@ -384,34 +405,29 @@ public class LevelManager : MonoBehaviour, ITimelined {
         enemy.StompedByMario ();
         soundSource.PlayOneShot (stompSound);
         AddScore (enemy.stompBonus, enemy.gameObject.transform.position);
-        Debug.Log (this.name + " MarioStompEnemy called on " + enemy.gameObject.name);
     }
 
     public void MarioStarmanTouchEnemy(Enemy enemy) {
         enemy.TouchedByStarmanMario ();
         soundSource.PlayOneShot (kickSound);
         AddScore (enemy.starmanBonus, enemy.gameObject.transform.position);
-        Debug.Log (this.name + " MarioStarmanTouchEnemy called on " + enemy.gameObject.name);
     }
 
     public void RollingShellTouchEnemy(Enemy enemy) {
         enemy.TouchedByRollingShell ();
         soundSource.PlayOneShot (kickSound);
         AddScore (enemy.rollingShellBonus, enemy.gameObject.transform.position);
-        Debug.Log (this.name + " RollingShellTouchEnemy called on " + enemy.gameObject.name);
     }
 
     public void BlockHitEnemy(Enemy enemy) {
         enemy.HitBelowByBlock ();
         AddScore (enemy.hitByBlockBonus, enemy.gameObject.transform.position);
-        Debug.Log (this.name + " BlockHitEnemy called on " + enemy.gameObject.name);
     }
 
     public void FireballTouchEnemy(Enemy enemy) {
         enemy.HitByMarioFireball ();
         soundSource.PlayOneShot (kickSound);
         AddScore (enemy.fireballBonus, enemy.gameObject.transform.position);
-        Debug.Log (this.name + " FireballTouchEnemy called on " + enemy.gameObject.name);
     }
 
     /****************** Scene loading */
@@ -421,8 +437,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
     }
 
     IEnumerator LoadSceneDelayCo(string sceneName, float delay) {
-        Debug.Log (this.name + " LoadSceneDelayCo: starts loading " + sceneName);
-
         float waited = 0;
         while (waited < delay) {
             if (!gamePaused) { // should not count delay while game paused
@@ -431,8 +445,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
             yield return null;
         }
         yield return new WaitWhile (() => gamePaused);
-
-        Debug.Log (this.name + " LoadSceneDelayCo: done loading " + sceneName);
 
         isRespawning = false;
         isPoweringDown = false;
@@ -456,10 +468,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
         t_GameStateManager.SaveGameState ();
         t_GameStateManager.SetSpawnPipe (spawnPipeIdx);
         LoadSceneDelay (sceneName, delay);
-        Debug.Log (this.name + " LoadSceneCurrentLevelSetSpawnPipe: supposed to load " + sceneName 
-            + ", spawnPipeIdx=" + spawnPipeIdx.ToString () + "; actual GSM spawnFromPoint=" 
-            + t_GameStateManager.spawnFromPoint.ToString () + ", spawnPipeIdx=" 
-            + t_GameStateManager.spawnPipeIdx.ToString ());
     }
 
     public void ReloadCurrentLevel(float delay = loadSceneDelay, bool timeup = false) {
@@ -508,7 +516,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
     }
 
     IEnumerator ChangeMusicCo(AudioClip clip, float delay) {
-        Debug.Log (this.name + " ChangeMusicCo: starts changing music to " + clip.name);
         musicSource.clip = clip;
         yield return new WaitWhile (() => gamePaused);
         //yield return new WaitForSecondsRealtime (delay);
@@ -516,7 +523,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
         if (!isRespawning) {
             musicSource.Play();
         }
-        Debug.Log (this.name + " ChangeMusicCo: done changing music to " + clip.name);
     }
 
     public void PauseMusicPlaySound(AudioClip clip, bool resumeMusic) {
@@ -528,7 +534,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
         if (musicSource.clip) {
             musicClipName = musicSource.clip.name;
         }
-        Debug.Log (this.name + " PausemusicPlaySoundCo: starts pausing music " + musicClipName + " to play sound " + clip.name);
 
         musicPaused = true;
         musicSource.Pause ();
@@ -541,11 +546,8 @@ public class LevelManager : MonoBehaviour, ITimelined {
             if (musicSource.clip) {
                 musicClipName = musicSource.clip.name;
             }
-            Debug.Log (this.name + " PausemusicPlaySoundCo: resume playing music " + musicClipName);
         }
         musicPaused = false;
-
-        Debug.Log (this.name + " PausemusicPlaySoundCo: done pausing music to play sound " + clip.name);
     }
 
     /****************** Game state */
@@ -600,9 +602,6 @@ public class LevelManager : MonoBehaviour, ITimelined {
     public Vector3 FindSpawnPosition() {
         Vector3 spawnPosition;
         GameStateManager t_GameStateManager = FindObjectOfType<GameStateManager>();
-        Debug.Log (this.name + " FindSpawnPosition: GSM spawnFromPoint=" + t_GameStateManager.spawnFromPoint.ToString()
-            + " spawnPipeIdx= " + t_GameStateManager.spawnPipeIdx.ToString() 
-            + " spawnPointIdx=" + t_GameStateManager.spawnPointIdx.ToString());
         if (t_GameStateManager.spawnFromPoint) {
             spawnPosition = GameObject.Find ("Spawn Points").transform.GetChild (t_GameStateManager.spawnPointIdx).transform.position;
         } else {
@@ -639,15 +638,59 @@ public class LevelManager : MonoBehaviour, ITimelined {
         mario.ClimbFlagPole ();
     }
 
+    public void PlayAudioOnce(AudioClip audio)
+    {
+        soundSource.PlayOneShot(audio);
+
+        var (right, inverted) = FindAudioPair(audio);
+
+        if (!Replaying)
+        {
+            new Snapshot(
+                owner: this,
+                audio: right,
+                started: true,
+                time: 0,
+                once: true)
+            ._(timeline.Record);
+
+            new Snapshot(
+                owner: this,
+                audio: inverted,
+                started: false,
+                time: audio.length,
+                once: true)
+            ._(_ => timeline.Record(_, audio.length * 1000));
+        }
+    }
+
+    private (AudioClip, AudioClip) FindAudioPair(AudioClip origin)
+    {
+        foreach (var (first, second) in audioClips)
+        {
+            if (first == origin)
+                return (first, second);
+            else if (second == origin)
+                return (second, first);
+        }
+
+        throw new Exception($"Can't find pair fo audio clip '{origin.name}'");
+    }
+
+
     private sealed class Snapshot : BaseSnapshot
     {
+        public AudioClip Audio { get; }
         public bool Started { get; }
         public float Time { get; }
+        public bool Once { get; }
 
-        public Snapshot(ITimelined owner, bool started, float time) : base(owner)
+        public Snapshot(ITimelined owner, AudioClip audio, bool started, float time, bool once) : base(owner)
         {
+            Audio = audio;
             Started = started;
             Time = time;
+            Once = once;
         }
     }
 }

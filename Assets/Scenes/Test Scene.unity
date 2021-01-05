@@ -1631,6 +1631,16 @@ PrefabInstance:
       propertyPath: m_ClearFlags
       value: 2
       objectReference: {fileID: 0}
+    - target: {fileID: 82989831986403836, guid: 2edb2b8e476654f0ea2807c7a8261a76,
+        type: 3}
+      propertyPath: m_Pitch
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 95451594757112706, guid: 2edb2b8e476654f0ea2807c7a8261a76,
+        type: 3}
+      propertyPath: m_UpdateMode
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 114256751761485294, guid: 2edb2b8e476654f0ea2807c7a8261a76,
         type: 3}
       propertyPath: timeline
@@ -1651,5 +1661,10 @@ PrefabInstance:
       propertyPath: debugText
       value: 
       objectReference: {fileID: 1143550939}
+    - target: {fileID: 114750208195470174, guid: 2edb2b8e476654f0ea2807c7a8261a76,
+        type: 3}
+      propertyPath: invertedJumpSmallSound
+      value: 
+      objectReference: {fileID: 8300000, guid: 3bf06b4e34d680b459280ae9b48423b0, type: 3}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2edb2b8e476654f0ea2807c7a8261a76, type: 3}

@@ -8,7 +8,7 @@ public sealed class Timeline : MonoBehaviour
     public int DurationSec;
     public int FrameRate;
 
-    private readonly LinkedList<ISnapshot> cache = new LinkedList<ISnapshot>();
+    private readonly LinkedList<CacheNode> cache = new LinkedList<CacheNode>();
     private readonly List<LinkedList<ISnapshot>> timeline = new List<LinkedList<ISnapshot>>();
 
     private int totalSnapshotCount;
@@ -46,11 +46,21 @@ public sealed class Timeline : MonoBehaviour
         if (Recording)
         {
             var current = new LinkedList<ISnapshot>();
+            var next = new LinkedList<CacheNode>();
+
             foreach (var snapshot in cache)
-                current.AddLast(snapshot);
+            {
+                if (snapshot.Time <= now)
+                    current.AddLast(snapshot.Snapshot);
+                else
+                    next.AddLast(snapshot);
+            }
 
             timeline.Add(current);
+
             cache.Clear();
+            foreach (var node in next)
+                cache.AddLast(node);
         }
 
         if (Playing)
@@ -71,6 +81,7 @@ public sealed class Timeline : MonoBehaviour
         {
             index += Direction;
         }
+
         last = now;
     }
 
@@ -83,16 +94,45 @@ public sealed class Timeline : MonoBehaviour
     {
         if (!Recording) return;
 
-        var existing = cache.FirstOrDefault(_ => _.Owner == snapshot.Owner);
+        var existing = cache.FirstOrDefault(_ => IsEqual(snapshot, _));
         if (existing != null)
             cache.Remove(existing);
 
-        cache.AddLast(snapshot);
+        new CacheNode
+        {
+            Time = DateTime.Now,
+            Snapshot = snapshot
+        }
+        ._(cache.AddLast);
+    }
+
+    public void Record(ISnapshot snapshot, float delayMs)
+    {
+        if (!Recording) return;
+
+        new CacheNode
+        {
+            Time = DateTime.Now.AddMilliseconds(delayMs),
+            Snapshot = snapshot
+        }
+        ._(cache.AddLast);
     }
 
     public void Invert(bool recording)
     {
         needInvert = true;
         recordAfterInvert = recording;
+    }
+
+    private bool IsEqual(ISnapshot snapshot, CacheNode node)
+    {
+        return node.Snapshot.Owner == snapshot.Owner 
+               && node.Time.Subtract(DateTime.Now) < delay;
+    }
+
+    private sealed class CacheNode
+    {
+        public DateTime Time { get; set; }
+        public ISnapshot Snapshot { get; set; }
     }
 }

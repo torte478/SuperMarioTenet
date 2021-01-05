@@ -6,8 +6,8 @@ using UnityEngine;
 /* Mario physics reference: http://s276.photobucket.com/user/jdaster64/media/smb_playerphysics.png.html */
 
 
-public class Mario : MonoBehaviour, ITimelined {
-
+public class Mario : MonoBehaviour, ITimelined
+{
     public Timeline timeline;
 
     private LevelManager t_LevelManager;
@@ -63,8 +63,6 @@ public class Mario : MonoBehaviour, ITimelined {
     private bool jumpButtonHeld;
     private bool jumpButtonReleased;
 
-    private bool playedByTimeline;
-
     public bool inputFreezed;
 
     // Use this for initialization
@@ -95,7 +93,7 @@ public class Mario : MonoBehaviour, ITimelined {
     {
         inputFreezed = true;
         m_Rigidbody2D.isKinematic = true;
-        playedByTimeline = true;
+        Replaying = true;
     }
 
     public void Play(ISnapshot snapshot)
@@ -145,7 +143,7 @@ public class Mario : MonoBehaviour, ITimelined {
 
     void FixedUpdate ()
     {
-        if (playedByTimeline) return;
+        if (Replaying) return;
 
         CalcPhysics();
 
@@ -275,11 +273,11 @@ public class Mario : MonoBehaviour, ITimelined {
                 wasDashingBeforeJump = isDashing;
                 if (t_LevelManager.marioSize == 0)
                 {
-                    t_LevelManager.soundSource.PlayOneShot(t_LevelManager.jumpSmallSound);
+                    t_LevelManager.PlayAudioOnce(t_LevelManager.jumpSmallSound);
                 }
                 else
                 {
-                    t_LevelManager.soundSource.PlayOneShot(t_LevelManager.jumpSuperSound);
+                    t_LevelManager.PlayAudioOnce(t_LevelManager.jumpSuperSound);
                 }
             }
         }
@@ -339,7 +337,7 @@ public class Mario : MonoBehaviour, ITimelined {
                 m_Animator.SetTrigger("isFiring");
                 GameObject fireball = Instantiate(Fireball, FirePos.position, Quaternion.identity);
                 fireball.GetComponent<MarioFireball>().directionX = transform.localScale.x;
-                t_LevelManager.soundSource.PlayOneShot(t_LevelManager.fireballSound);
+                t_LevelManager.PlayAudioOnce(t_LevelManager.fireballSound);
                 fireTime1 = Time.time;
             }
         }
@@ -410,6 +408,9 @@ public class Mario : MonoBehaviour, ITimelined {
 
     bool isClimbingFlagPole = false;
     Vector2 climbFlagPoleVelocity = new Vector2 (0, -5f);
+
+    public bool Replaying { get; private set; }
+
     public void ClimbFlagPole() {
         FreezeUserInput ();
         isClimbingFlagPole = true;
