@@ -15,11 +15,8 @@ public sealed class Timeline : MonoBehaviour
     private TimeSpan delay;
     private DateTime last;
     private int index;
-    private bool needInvert;
-    private bool recordAfterInvert;
 
-    public bool Recording { get; private set; }
-    public bool Playing { get; private set; }
+    public LoopState State { get; private set; }
     public int Direction { get; private set; }
 
     public Action<int> OnInverted;
@@ -29,10 +26,12 @@ public sealed class Timeline : MonoBehaviour
         totalSnapshotCount = DurationSec * FrameRate;
         last = DateTime.Now;
         delay = TimeSpan.FromMilliseconds(1000f / FrameRate);
+
         index = 0;
-        timeline.Capacity = totalSnapshotCount;
-        Recording = true;
-        Playing = false;
+        for (var i = 0; i < totalSnapshotCount; ++i)
+            timeline.Add(new LinkedList<ISnapshot>());
+
+        State = LoopState.Forwarded;
         Direction = 1;
     }
 
@@ -43,46 +42,57 @@ public sealed class Timeline : MonoBehaviour
         var now = DateTime.Now;
         if (now.Subtract(last) < delay) return;
 
-        if (Recording)
-        {
-            var current = new LinkedList<ISnapshot>();
-            var next = new LinkedList<CacheNode>();
+        Play();
+        RecordToTimeline(now);
 
-            foreach (var snapshot in cache)
-            {
-                if (snapshot.Time <= now)
-                    current.AddLast(snapshot.Snapshot);
-                else
-                    next.AddLast(snapshot);
-            }
-
-            timeline.Add(current);
-
-            cache.Clear();
-            foreach (var node in next)
-                cache.AddLast(node);
-        }
-
-        if (Playing)
-        {
-            foreach (var snapshot in timeline[index])
-                snapshot.Owner.Play(snapshot);
-        }
-
+        index += Direction;
+        var needInvert = Direction == 1 && index == totalSnapshotCount
+                         || Direction == -1 && index == -1;
         if (needInvert)
         {
             needInvert = false;
             Direction *= -1;
-            Recording = recordAfterInvert;
-            Playing = true;
+
+            State = State == LoopState.Forwarded
+                ? LoopState.Inverted
+                : LoopState.Infinite;
+
             OnInverted?.Invoke(Direction);
-        }
-        else
-        {
+
             index += Direction;
         }
 
         last = now;
+    }
+
+    private void RecordToTimeline(DateTime now)
+    {
+        if (State == LoopState.Infinite) return;
+
+        var next = new LinkedList<CacheNode>();
+
+        foreach (var snapshot in cache)
+        {
+            if (snapshot.Time <= now)
+                timeline[index].AddLast(snapshot.Snapshot);
+            else
+                next.AddLast(snapshot);
+        }
+
+        cache.Clear();
+        foreach (var node in next)
+            cache.AddLast(node);
+    }
+
+    private void Play()
+    {
+        if (State == LoopState.Forwarded) return;
+
+        foreach (var snapshot in timeline[index])
+        {
+            if (snapshot.Direction == 0 || snapshot.Direction == Direction)
+                snapshot.Owner.Play(snapshot);
+        }
     }
 
     public override string ToString()
@@ -92,47 +102,55 @@ public sealed class Timeline : MonoBehaviour
 
     public void Record(ISnapshot snapshot)
     {
-        if (!Recording) return;
+        if (State == LoopState.Infinite) return;
 
         var existing = cache.FirstOrDefault(_ => IsEqual(snapshot, _));
         if (existing != null)
             cache.Remove(existing);
 
-        new CacheNode
-        {
-            Time = DateTime.Now,
-            Snapshot = snapshot
-        }
-        ._(cache.AddLast);
+        RecordToCache(snapshot, DateTime.Now);
     }
 
     public void Record(ISnapshot snapshot, float delayMs)
     {
-        if (!Recording) return;
+        if (State == LoopState.Infinite) return;
 
+        RecordToCache(snapshot, DateTime.Now.AddMilliseconds(delayMs));
+    }
+
+    private void RecordToCache(ISnapshot snapshot, DateTime time)
+    {
         new CacheNode
         {
-            Time = DateTime.Now.AddMilliseconds(delayMs),
+            Time = time,
             Snapshot = snapshot
         }
         ._(cache.AddLast);
     }
 
-    public void Invert(bool recording)
+    public void FirstInvertStart()
     {
-        needInvert = true;
-        recordAfterInvert = recording;
+        totalSnapshotCount = index + 1;
     }
 
     private bool IsEqual(ISnapshot snapshot, CacheNode node)
     {
-        return node.Snapshot.Owner == snapshot.Owner 
+        return node.Snapshot.Owner == snapshot.Owner
+               && node.Snapshot.Direction == snapshot.Direction
                && node.Time.Subtract(DateTime.Now) < delay;
     }
 
     private sealed class CacheNode
     {
         public DateTime Time { get; set; }
+        public int Direction { get; set; }
         public ISnapshot Snapshot { get; set; }
+    }
+
+    public enum LoopState
+    {
+        Forwarded,
+        Inverted,
+        Infinite,
     }
 }

@@ -11,6 +11,8 @@ public class LevelManager : MonoBehaviour, ITimelined
 {
     private const float loadSceneDelay = 1f;
 
+    private bool firstInvertion = true;
+
     public Text debugText;
     public Timeline timeline;
 
@@ -130,7 +132,17 @@ public class LevelManager : MonoBehaviour, ITimelined
             audio: levelMusic,
             started: true,
             time: 0,
-            once: false)
+            once: false,
+            direction: 1)
+        ._(timeline.Record);
+
+        new Snapshot(
+            owner: this,
+            audio: levelMusic,
+            started: false,
+            time: 0,
+            once: false,
+            direction: -1)
         ._(timeline.Record);
     }
 
@@ -138,24 +150,32 @@ public class LevelManager : MonoBehaviour, ITimelined
     {
         musicSource.pitch = direction;
         Replaying = true;
+
+        if (firstInvertion)
+        {
+            firstInvertion = false;
+
+            invertedMario.transform.position = new Vector2(
+                x: mario.transform.position.x + mario.transform.localScale.x * mario.GetComponent<BoxCollider2D>().bounds.size.x,
+                y: mario.transform.position.y);
+            invertedMario.transform.localScale = new Vector2(mario.transform.localScale.x * -1, 1);
+            invertedMario.gameObject.SetActive(true);
+            invertedMario.Init(timeline);
+        }
     }
 
     public void Play(ISnapshot snapshot)
     {
         var audio = snapshot.As<Snapshot>();
-
-        var startPlay = (audio.Started ? 1 : -1) == timeline.Direction;
+        if (audio.Direction != timeline.Direction) return;
 
         if (audio.Once)
         {
-            if (startPlay)
-            {
-                soundSource.PlayOneShot(audio.Audio);
-            }
+            soundSource.PlayOneShot(audio.Audio);
         }
         else
         {
-            if (startPlay)
+            if (audio.Started)
             {
                 musicSource.time = audio.Time;
                 musicSource.Play();
@@ -216,18 +236,22 @@ public class LevelManager : MonoBehaviour, ITimelined
                 audio: levelMusic,
                 started: false,
                 time: musicSource.time,
-                once: false)
+                once: false,
+                direction: 1)
+            ._(timeline.Record);
+
+            new Snapshot(
+                owner: this,
+                audio: levelMusic,
+                started: true,
+                time: musicSource.time,
+                once: false,
+                direction: -1)
             ._(timeline.Record);
 
             musicSource.Stop();
 
-            timeline.Invert(recording: false);
-
-            invertedMario.transform.position = new Vector2(
-                x: mario.transform.position.x + mario.transform.localScale.x * mario.GetComponent<BoxCollider2D>().bounds.size.x, 
-                y: mario.transform.position.y);
-            invertedMario.transform.localScale = new Vector2(mario.transform.localScale.x * -1, 1);
-            invertedMario.gameObject.SetActive(true);
+            timeline.FirstInvertStart();
         }
 
         if (Input.GetKeyDown(KeyCode.R))
@@ -650,28 +674,30 @@ public class LevelManager : MonoBehaviour, ITimelined
         mario.ClimbFlagPole ();
     }
 
-    public void PlayAudioOnce(AudioClip audio)
+    public void PlayAudioOnce(AudioClip audio, ITimelined owner)
     {
         soundSource.PlayOneShot(audio);
 
-        var (right, inverted) = FindAudioPair(audio);
-
-        if (!Replaying)
+        if (!owner.Replaying)
         {
+            var (right, inverted) = FindAudioPair(audio);
+
             new Snapshot(
                 owner: this,
                 audio: right,
                 started: true,
                 time: 0,
-                once: true)
+                once: true,
+                direction: timeline.Direction)
             ._(timeline.Record);
 
             new Snapshot(
                 owner: this,
                 audio: inverted,
-                started: false,
-                time: audio.length,
-                once: true)
+                started: true,
+                time: 0,
+                once: true,
+                direction: timeline.Direction * -1)
             ._(_ => timeline.Record(_, audio.length * 1000));
         }
     }
@@ -697,12 +723,13 @@ public class LevelManager : MonoBehaviour, ITimelined
         public float Time { get; }
         public bool Once { get; }
 
-        public Snapshot(ITimelined owner, AudioClip audio, bool started, float time, bool once) : base(owner)
+        public Snapshot(ITimelined owner, AudioClip audio, bool started, float time, bool once, int direction) : base(owner)
         {
             Audio = audio;
             Started = started;
             Time = time;
             Once = once;
+            Direction = direction;
         }
     }
 }

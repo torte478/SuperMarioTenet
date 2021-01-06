@@ -99,15 +99,26 @@ public class Mario : MonoBehaviour, ITimelined
 
     public void Play(ISnapshot snapshot)
     {
+        if (!Replaying) return;
+
         var current = snapshot.As<Snapshot>();
 
         transform.position = current.Position;
-        transform.localScale = new Vector2(current.Direction, transform.localScale.y);
+        transform.localScale = new Vector2(current.FaceDirection, transform.localScale.y);
         m_Animator.SetFloat("absSpeed", current.Animator.AbsSpeed);
         m_Animator.SetBool("isJumping", current.Animator.IsJumping);
         m_Animator.SetBool("isCrouching", current.Animator.IsCrouching);
         m_Animator.SetBool("isFallingNotFromJump", current.Animator.IsFallingNotFromJump);
         m_Animator.SetBool("isSkidding", current.Animator.IsSkidding);
+    }
+
+    public void Init(Timeline timeline)
+    {
+        if (this.timeline != null)
+            throw new Exception("Timeline is already initiated");
+
+        this.timeline = timeline;
+        this.timeline.OnInverted += OnTimelineInverted;
     }
 
     /****************** Movement control */
@@ -153,7 +164,7 @@ public class Mario : MonoBehaviour, ITimelined
         new Snapshot(
             owner: this,
             position: transform.position,
-            direction: Math.Sign(transform.localScale.x),
+            faceDirection: Math.Sign(transform.localScale.x),
             animator: new AnimatorState
             {
                 AbsSpeed = m_Animator.GetFloat("absSpeed"),
@@ -276,11 +287,11 @@ public class Mario : MonoBehaviour, ITimelined
                 wasDashingBeforeJump = isDashing;
                 if (t_LevelManager.marioSize == 0)
                 {
-                    t_LevelManager.PlayAudioOnce(t_LevelManager.jumpSmallSound);
+                    t_LevelManager.PlayAudioOnce(t_LevelManager.jumpSmallSound, this);
                 }
                 else
                 {
-                    t_LevelManager.PlayAudioOnce(t_LevelManager.jumpSuperSound);
+                    t_LevelManager.PlayAudioOnce(t_LevelManager.jumpSuperSound, this);
                 }
             }
         }
@@ -340,7 +351,7 @@ public class Mario : MonoBehaviour, ITimelined
                 m_Animator.SetTrigger("isFiring");
                 GameObject fireball = Instantiate(Fireball, FirePos.position, Quaternion.identity);
                 fireball.GetComponent<MarioFireball>().directionX = transform.localScale.x;
-                t_LevelManager.PlayAudioOnce(t_LevelManager.fireballSound);
+                t_LevelManager.PlayAudioOnce(t_LevelManager.fireballSound, this);
                 fireTime1 = Time.time;
             }
         }
@@ -531,13 +542,13 @@ public class Mario : MonoBehaviour, ITimelined
     private sealed class Snapshot : BaseSnapshot
     {
         public Vector2 Position { get; }
-        public int Direction { get; }
+        public int FaceDirection { get; }
         public AnimatorState Animator { get; }
 
-        public Snapshot(ITimelined owner, Vector2 position, int direction, AnimatorState animator) : base(owner)
+        public Snapshot(ITimelined owner, Vector2 position, int faceDirection, AnimatorState animator) : base(owner)
         {
             Position = position;
-            Direction = direction;
+            FaceDirection = faceDirection;
             Animator = animator;
         }
     }
