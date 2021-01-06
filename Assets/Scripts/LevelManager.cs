@@ -251,6 +251,11 @@ public class LevelManager : MonoBehaviour, ITimelined
 
             musicSource.Stop();
 
+            //TODO : for camera
+            invertedMario.transform.position = new Vector2(
+                x: mario.transform.position.x + mario.transform.localScale.x * mario.GetComponent<BoxCollider2D>().bounds.size.x,
+                y: mario.transform.position.y);
+
             timeline.FirstInvertStart();
         }
 

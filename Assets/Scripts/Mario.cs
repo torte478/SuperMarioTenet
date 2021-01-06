@@ -93,6 +93,7 @@ public class Mario : MonoBehaviour, ITimelined
     private void OnTimelineInverted(int direction)
     {
         inputFreezed = true;
+        m_Rigidbody2D.velocity = Vector3.zero;
         m_Rigidbody2D.isKinematic = true;
         Replaying = true;
     }
