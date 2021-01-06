@@ -86,7 +86,8 @@ public class Mario : MonoBehaviour, ITimelined
         fireTime1 = 0;
         fireTime2 = 0;
 
-        timeline.OnInverted += OnTimelineInverted;
+        if (timeline != null)
+            timeline.OnInverted += OnTimelineInverted;
     }
 
     private void OnTimelineInverted(int direction)
@@ -146,6 +147,8 @@ public class Mario : MonoBehaviour, ITimelined
         if (Replaying) return;
 
         CalcPhysics();
+
+        if (timeline == null) return;
 
         new Snapshot(
             owner: this,

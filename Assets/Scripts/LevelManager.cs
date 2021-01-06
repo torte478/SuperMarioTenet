@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
@@ -32,6 +33,7 @@ public class LevelManager : MonoBehaviour, ITimelined
 
     private GameStateManager t_GameStateManager;
     private Mario mario;
+    private Mario invertedMario;
     private Animator mario_Animator;
     private Rigidbody2D mario_Rigidbody2D;
 
@@ -95,7 +97,11 @@ public class LevelManager : MonoBehaviour, ITimelined
         t_GameStateManager = FindObjectOfType<GameStateManager>();
         RetrieveGameState ();
 
-        mario = FindObjectOfType<Mario> ();
+        var marios = FindObjectsOfType<Mario>();
+        mario = marios.First(_ => _.name == "Mario");
+        invertedMario = marios.First(_ => _.name == "InvertedMario");
+        invertedMario.gameObject.SetActive(false);
+
         mario_Animator = mario.gameObject.GetComponent<Animator> ();
         mario_Rigidbody2D = mario.gameObject.GetComponent<Rigidbody2D> ();
         mario.UpdateSize ();
@@ -216,6 +222,12 @@ public class LevelManager : MonoBehaviour, ITimelined
             musicSource.Stop();
 
             timeline.Invert(recording: false);
+
+            invertedMario.transform.position = new Vector2(
+                x: mario.transform.position.x + mario.transform.localScale.x * mario.GetComponent<BoxCollider2D>().bounds.size.x, 
+                y: mario.transform.position.y);
+            invertedMario.transform.localScale = new Vector2(mario.transform.localScale.x * -1, 1);
+            invertedMario.gameObject.SetActive(true);
         }
 
         if (Input.GetKeyDown(KeyCode.R))
