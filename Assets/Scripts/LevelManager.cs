@@ -156,7 +156,7 @@ public class LevelManager : MonoBehaviour, ITimelined
             firstInvertion = false;
 
             invertedMario.transform.position = new Vector2(
-                x: mario.transform.position.x + mario.transform.localScale.x * mario.GetComponent<BoxCollider2D>().bounds.size.x,
+                x: mario.transform.position.x + mario.transform.localScale.x * mario.GetComponent<BoxCollider2D>().bounds.size.x + 1,
                 y: mario.transform.position.y);
             invertedMario.transform.localScale = new Vector2(mario.transform.localScale.x * -1, 1);
             invertedMario.gameObject.SetActive(true);
@@ -429,13 +429,15 @@ public class LevelManager : MonoBehaviour, ITimelined
             soundSource.PlayOneShot (deadSound);
 
             Time.timeScale = 0f;
-            mario.FreezeAndDie ();
+            timeline.Stop();
+            mario.FreezeAndDie();
+            invertedMario.FreezeAndDie();
 
-            if (lives > 0) {
-                ReloadCurrentLevel (deadSound.length, timeup);
-            } else {
-                LoadGameOver (deadSound.length, timeup);
-            }
+            //if (lives > 0) {
+            //    ReloadCurrentLevel (deadSound.length, timeup);
+            //} else {
+            //    LoadGameOver (deadSound.length, timeup);
+            //}
         }
     }
         

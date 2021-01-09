@@ -15,6 +15,7 @@ public sealed class Timeline : MonoBehaviour
     private TimeSpan delay;
     private DateTime last;
     private int index;
+    private bool stopped;
 
     public LoopState State { get; private set; }
     public int Direction { get; private set; }
@@ -37,7 +38,7 @@ public sealed class Timeline : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (index < 0 || index >= totalSnapshotCount) return;
+        if (stopped || index < 0 || index >= totalSnapshotCount) return;
 
         var now = DateTime.Now;
         if (now.Subtract(last) < delay) return;
@@ -131,6 +132,11 @@ public sealed class Timeline : MonoBehaviour
     public void FirstInvertStart()
     {
         totalSnapshotCount = index + 1;
+    }
+
+    public void Stop()
+    {
+        stopped = true;
     }
 
     private bool IsEqual(ISnapshot snapshot, CacheNode node)

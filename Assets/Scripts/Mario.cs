@@ -65,6 +65,8 @@ public class Mario : MonoBehaviour, ITimelined
 
     public bool inputFreezed;
 
+    public bool original;
+
     // Use this for initialization
     void Start () {
         t_LevelManager = FindObjectOfType<LevelManager>();
@@ -77,7 +79,7 @@ public class Mario : MonoBehaviour, ITimelined
         normalGravity = m_Rigidbody2D.gravityScale;
 
         // Drop Mario at spawn position
-        transform.position = FindObjectOfType<LevelManager>().FindSpawnPosition();
+        //transform.position = FindObjectOfType<LevelManager>().FindSpawnPosition();
 
         // Set correct size
         UpdateSize ();
@@ -537,6 +539,14 @@ public class Mario : MonoBehaviour, ITimelined
             Debug.Log (this.name + ": Mario hits bottom of flag pole");
             isClimbingFlagPole = false;
             JumpOffPole ();
+        }
+    }
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.gameObject.name == "InvertedCollider" && !original)
+        {
+            t_LevelManager.MarioRespawn();
         }
     }
 
