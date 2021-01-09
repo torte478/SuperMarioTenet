@@ -13,10 +13,15 @@ public class DestroyAfterAnimation : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-		if (gameObject.transform.parent.gameObject) {
-			Destroy (gameObject.transform.parent.gameObject, this.GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).length + delay);
-		}
-		Destroy (gameObject, this.GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).length + delay); 
+		//if (gameObject.transform.parent.gameObject) {
+		//	Destroy (gameObject.transform.parent.gameObject, this.GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).length + delay);
+		//}
+		
+		//Destroy (gameObject, this.GetComponent<Animator>().GetCurrentAnimatorStateInfo(0).length +  + delay); 
 	}
 
+	public void OnAnimationEnd()
+    {
+		Destroy(gameObject);
+    }
 }
